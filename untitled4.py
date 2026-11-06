@@ -1,43 +1,23 @@
 
 
-import streamlit as st
+
+# ==========================================
+# 1. INSTALAR E IMPORTAR LIBRERÍAS
+# ==========================================
+
+!pip install -q pandas requests plotly
+
 import requests
 import pandas as pd
 import plotly.express as px
 
-# ==========================================
-# 1. CONFIGURACIÓN
-# ==========================================
-
-st.set_page_config(
-    page_title="Desigualdad Global",
-    page_icon="🌎",
-    layout="wide"
-)
-
 BASE_URL = "https://api.worldbank.org/v2"
 
-COUNTRIES = {
-    "Colombia": "COL",
-    "Brasil": "BRA",
-    "Chile": "CHL",
-    "Argentina": "ARG",
-    "México": "MEX",
-    "Perú": "PER",
-    "Estados Unidos": "USA",
-    "España": "ESP"
-}
-
-INDICATORS = {
-    "Índice de Gini": "SI.POV.GINI",
-    "Pobreza extrema": "SI.POV.DDAY"
-}
 
 # ==========================================
-# 2. CONEXIÓN CON BANCO MUNDIAL
+# 2. FUNCIÓN PARA CONSULTAR EL BANCO MUNDIAL
 # ==========================================
 
-@st.cache_data(ttl=3600)
 def get_indicator(
     indicator,
     country="all",
@@ -91,432 +71,225 @@ def get_indicator(
 
 
 # ==========================================
-# 3. ENCABEZADO
+# 3. CONSULTAR ÍNDICE GINI DE COLOMBIA
 # ==========================================
 
-st.title("🌎 DESIGUALDAD GLOBAL")
-
-st.subheader(
-    "Explorador de desigualdad económica mundial"
+df_gini = get_indicator(
+    indicator="SI.POV.GINI",
+    country="COL",
+    start_year=2000,
+    end_year=2025
 )
 
-st.markdown("""
-Consulta y compara indicadores económicos y sociales
-de diferentes países utilizando datos oficiales del
-Banco Mundial.
-""")
+print("ÍNDICE GINI DE COLOMBIA")
 
-st.divider()
+display(df_gini.head(10))
+
+print("Total de observaciones:", len(df_gini))
+
 
 # ==========================================
-# 4. MENÚ LATERAL
+# 4. CONSULTAR POBREZA EXTREMA
 # ==========================================
 
-st.sidebar.title("📊 Navegación")
-
-page = st.sidebar.radio(
-    "Selecciona una sección:",
-    [
-        "Análisis por país",
-        "Comparador de países"
-    ]
+df_pobreza = get_indicator(
+    indicator="SI.POV.DDAY",
+    country="COL",
+    start_year=2000,
+    end_year=2025
 )
 
-st.sidebar.markdown("---")
+print("POBREZA EXTREMA EN COLOMBIA")
 
-st.sidebar.caption(
-    "Fuente: Banco Mundial | API pública"
+display(df_pobreza.head(10))
+
+
+# ==========================================
+# 5. COMPARAR DOS PAÍSES
+# ==========================================
+
+df_colombia = get_indicator(
+    "SI.POV.GINI",
+    "COL",
+    2000,
+    2025
 )
 
+df_brasil = get_indicator(
+    "SI.POV.GINI",
+    "BRA",
+    2000,
+    2025
+)
+
+# Organizar columnas
+
+df_colombia = df_colombia[
+    ["year", "value"]
+].rename(
+    columns={"value": "Colombia"}
+)
+
+df_brasil = df_brasil[
+    ["year", "value"]
+].rename(
+    columns={"value": "Brasil"}
+)
+
+# Unir por año
+
+comparacion = pd.merge(
+    df_colombia,
+    df_brasil,
+    on="year",
+    how="inner"
+)
+
+comparacion = comparacion.sort_values("year")
+
+print("COMPARACIÓN COLOMBIA VS BRASIL")
+
+display(comparacion)
+
+
 # ==========================================
-# 5. ANÁLISIS POR PAÍS
+# 6. CALCULAR DIFERENCIA ENTRE PAÍSES
 # ==========================================
 
-if page == "Análisis por país":
+if not comparacion.empty:
 
-    st.header("📍 Consulta de indicadores")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        country_name = st.selectbox(
-            "Selecciona un país",
-            list(COUNTRIES.keys())
-        )
-
-    with col2:
-        indicator_name = st.selectbox(
-            "Selecciona un indicador",
-            list(INDICATORS.keys())
-        )
-
-    start_year, end_year = st.slider(
-        "Selecciona el período",
-        1990, 2025, (2000, 2025)
+    comparacion["diferencia"] = (
+        comparacion["Colombia"] -
+        comparacion["Brasil"]
     )
 
-    country_code = COUNTRIES[country_name]
-    indicator_code = INDICATORS[indicator_name]
+    display(comparacion)
 
-    try:
+    ultimo = comparacion.iloc[-1]
 
-        with st.spinner("Consultando Banco Mundial..."):
+    print("Último año común:", int(ultimo["year"]))
 
-            df = get_indicator(
-                indicator_code,
-                country_code,
-                start_year,
-                end_year
-            )
-
-        if df.empty:
-
-            st.warning(
-                "No existen datos disponibles para "
-                "este país, indicador y período."
-            )
-
-        else:
-
-            df = df.sort_values("year")
-
-            latest = df.iloc[-1]
-
-            # INDICADORES
-
-            st.subheader("Resultados principales")
-
-            col1, col2, col3 = st.columns(3)
-
-            col1.metric(
-                "Último valor registrado",
-                f"{latest['value']:.2f}"
-            )
-
-            col2.metric(
-                "Último año disponible",
-                int(latest["year"])
-            )
-
-            col3.metric(
-                "Observaciones",
-                len(df)
-            )
-
-            st.divider()
-
-            # GRÁFICA
-
-            st.subheader(
-                f"Evolución de {indicator_name} en {country_name}"
-            )
-
-            fig = px.line(
-                df,
-                x="year",
-                y="value",
-                markers=True,
-                labels={
-                    "year": "Año",
-                    "value": indicator_name
-                },
-                title=indicator_name
-            )
-
-            fig.update_traces(
-                line_color="#159B80",
-                marker_size=8
-            )
-
-            fig.update_layout(
-                template="plotly_white",
-                hovermode="x unified"
-            )
-
-            st.plotly_chart(
-                fig,
-                use_container_width=True
-            )
-
-            # TABLA
-
-            st.subheader("Datos históricos")
-
-            st.dataframe(
-                df.sort_values(
-                    "year",
-                    ascending=False
-                ),
-                use_container_width=True,
-                hide_index=True
-            )
-
-            # DESCARGA
-
-            csv = df.to_csv(
-                index=False
-            ).encode("utf-8")
-
-            st.download_button(
-                "📥 Descargar datos CSV",
-                data=csv,
-                file_name="datos_banco_mundial.csv",
-                mime="text/csv"
-            )
-
-            st.caption(
-                f"Fuente: Banco Mundial | "
-                f"Indicador: {indicator_code}"
-            )
-
-    except requests.exceptions.RequestException as error:
-
-        st.error(
-            f"Error al conectar con el Banco Mundial: {error}"
-        )
-
-    except Exception as error:
-
-        st.error(
-            f"Se produjo un error: {error}"
-        )
-
-
-# ==========================================
-# 6. COMPARADOR DE PAÍSES
-# ==========================================
-
-elif page == "Comparador de países":
-
-    st.header("⚖️ Comparador de países")
-
-    st.write(
-        "Compara la evolución de la desigualdad "
-        "entre dos países."
+    print(
+        "Diferencia del índice Gini:",
+        round(ultimo["diferencia"], 2),
+        "puntos"
     )
 
-    col1, col2 = st.columns(2)
 
-    with col1:
+# ==========================================
+# 7. GRÁFICA COMPARATIVA
+# ==========================================
 
-        country1 = st.selectbox(
-            "Primer país",
-            list(COUNTRIES.keys()),
-            index=0
-        )
+if not comparacion.empty:
 
-    with col2:
-
-        country2 = st.selectbox(
-            "Segundo país",
-            list(COUNTRIES.keys()),
-            index=1
-        )
-
-    start_year, end_year = st.slider(
-        "Período de comparación",
-        1990, 2025, (2000, 2025),
-        key="comparison_years"
+    datos_grafica = comparacion.melt(
+        id_vars="year",
+        value_vars=["Colombia", "Brasil"],
+        var_name="País",
+        value_name="Índice Gini"
     )
 
-    if country1 == country2:
+    fig = px.line(
+        datos_grafica,
+        x="year",
+        y="Índice Gini",
+        color="País",
+        markers=True,
+        title="Desigualdad económica: Colombia vs Brasil",
+        labels={
+            "year": "Año",
+            "Índice Gini": "Índice Gini (0-100)"
+        }
+    )
 
-        st.warning(
-            "Debes seleccionar dos países diferentes."
-        )
-
-    else:
-
-        code1 = COUNTRIES[country1]
-        code2 = COUNTRIES[country2]
-
-        try:
-
-            with st.spinner(
-                "Comparando datos de ambos países..."
-            ):
-
-                df1 = get_indicator(
-                    "SI.POV.GINI",
-                    code1,
-                    start_year,
-                    end_year
-                )
-
-                df2 = get_indicator(
-                    "SI.POV.GINI",
-                    code2,
-                    start_year,
-                    end_year
-                )
-
-            if df1.empty or df2.empty:
-
-                st.warning(
-                    "No existen suficientes datos para "
-                    "comparar ambos países."
-                )
-
-            else:
-
-                df1 = df1[["year", "value"]].rename(
-                    columns={"value": country1}
-                )
-
-                df2 = df2[["year", "value"]].rename(
-                    columns={"value": country2}
-                )
-
-                comparison = pd.merge(
-                    df1,
-                    df2,
-                    on="year",
-                    how="inner"
-                ).sort_values("year")
-
-                if comparison.empty:
-
-                    st.warning(
-                        "No hay años comunes con datos "
-                        "disponibles para ambos países."
-                    )
-
-                else:
-
-                    latest = comparison.iloc[-1]
-
-                    st.caption(
-                        f"Último año común: {int(latest['year'])}"
-                    )
-
-                    difference = abs(
-                        latest[country1] -
-                        latest[country2]
-                    )
-
-                    col1, col2, col3 = st.columns(3)
-
-                    col1.metric(
-                        country1,
-                        f"{latest[country1]:.2f}"
-                    )
-
-                    col2.metric(
-                        country2,
-                        f"{latest[country2]:.2f}"
-                    )
-
-                    col3.metric(
-                        "Diferencia",
-                        f"{difference:.2f} puntos"
-                    )
-
-                    # GRÁFICA COMPARATIVA
-
-                    st.subheader(
-                        "Evolución histórica del índice Gini"
-                    )
-
-                    chart_data = comparison.melt(
-                        id_vars="year",
-                        var_name="País",
-                        value_name="Índice Gini"
-                    )
-
-                    fig = px.line(
-                        chart_data,
-                        x="year",
-                        y="Índice Gini",
-                        color="País",
-                        markers=True,
-                        title="Comparación de desigualdad"
-                    )
-
-                    fig.update_layout(
-                        template="plotly_white",
-                        yaxis_title="Índice Gini (0-100)",
-                        xaxis_title="Año"
-                    )
-
-                    st.plotly_chart(
-                        fig,
-                        use_container_width=True
-                    )
-
-                    # TABLA
-
-                    st.subheader("Comparación de datos")
-
-                    st.dataframe(
-                        comparison,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                    # INTERPRETACIÓN
-
-                    st.subheader("Interpretación")
-
-                    if latest[country1] > latest[country2]:
-
-                        st.info(
-                            f"En {int(latest['year'])}, "
-                            f"{country1} presenta mayor "
-                            f"desigualdad que {country2}, "
-                            f"con una diferencia de "
-                            f"{difference:.2f} puntos Gini."
-                        )
-
-                    elif latest[country1] < latest[country2]:
-
-                        st.info(
-                            f"En {int(latest['year'])}, "
-                            f"{country2} presenta mayor "
-                            f"desigualdad que {country1}, "
-                            f"con una diferencia de "
-                            f"{difference:.2f} puntos Gini."
-                        )
-
-                    else:
-
-                        st.info(
-                            "Ambos países tienen el mismo "
-                            "índice Gini en ese año."
-                        )
-
-        except requests.exceptions.RequestException as error:
-
-            st.error(
-                f"Error al consultar el Banco Mundial: {error}"
-            )
-
-        except Exception as error:
-
-            st.error(
-                f"Se produjo un error: {error}"
-            )
+    fig.show()
 
 
 # ==========================================
-# 7. PIE DE PÁGINA
+# 8. COMPARAR VARIOS PAÍSES
 # ==========================================
 
-st.divider()
+paises = {
+    "Colombia": "COL",
+    "Brasil": "BRA",
+    "Chile": "CHL",
+    "Argentina": "ARG",
+    "México": "MEX",
+    "Perú": "PER"
+}
 
-st.markdown(
-    """
-    **DESIGUALDAD GLOBAL**
+resultados = []
 
-    Proyecto académico de análisis económico.
+for nombre, codigo in paises.items():
 
-    Fuente de información:
-    [Banco Mundial](https://data.worldbank.org/)
+    df = get_indicator(
+        "SI.POV.GINI",
+        codigo,
+        2000,
+        2025
+    )
 
-    Los resultados dependen de la disponibilidad
-    de observaciones oficiales para cada país y año.
-    """
+    if not df.empty:
+
+        ultimo = df.sort_values(
+            "year"
+        ).iloc[-1]
+
+        resultados.append({
+            "País": nombre,
+            "Código": codigo,
+            "Índice Gini": ultimo["value"],
+            "Año": ultimo["year"]
+        })
+
+ranking = pd.DataFrame(resultados)
+
+ranking = ranking.sort_values(
+    "Índice Gini",
+    ascending=False
 )
 
+print("COMPARACIÓN INTERNACIONAL")
+
+display(ranking)
 
 
+# ==========================================
+# 9. GRÁFICA DE COMPARACIÓN INTERNACIONAL
+# ==========================================
 
+if not ranking.empty:
+
+    fig = px.bar(
+        ranking,
+        x="País",
+        y="Índice Gini",
+        color="Índice Gini",
+        text="Índice Gini",
+        title="Índice Gini por país",
+        hover_data=["Año"]
+    )
+
+    fig.update_layout(
+        yaxis_title="Índice Gini (0-100)",
+        xaxis_title="País"
+    )
+
+    fig.show()
+
+
+# ==========================================
+# 10. EXPORTAR RESULTADOS
+# ==========================================
+
+comparacion.to_csv(
+    "comparacion_colombia_brasil.csv",
+    index=False
+)
+
+ranking.to_csv(
+    "ranking_desigualdad.csv",
+    index=False
+)
+
+print("Archivos CSV generados correctamente.")

@@ -515,34 +515,7 @@ display(df_pobreza.head())
 #             )
 #
 
-!pkill -f "streamlit run app.py" || true
 
-!streamlit run app.py \
-  --server.address 0.0.0.0 \
-  --server.port 8501 \
-  --server.headless true \
-  --server.enableCORS false \
-  --server.enableXsrfProtection false \
-  > streamlit.log 2>&1 &
-
-import time
-import requests
-
-time.sleep(5)
-
-print(
-    requests.get(
-        "http://127.0.0.1:8501/_stcore/health"
-    ).text
-)
-
-from google.colab.output import eval_js
-
-url = eval_js(
-    "google.colab.kernel.proxyPort(8501)"
-)
-
-print(url)
 
 """desigualdad-global/
 │

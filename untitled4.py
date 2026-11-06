@@ -83,7 +83,7 @@ df_gini = get_indicator(
 
 print("ÍNDICE GINI DE COLOMBIA")
 
-display(df_gini.head(10))
+
 
 print("Total de observaciones:", len(df_gini))
 
@@ -101,7 +101,7 @@ df_pobreza = get_indicator(
 
 print("POBREZA EXTREMA EN COLOMBIA")
 
-display(df_pobreza.head(10))
+
 
 
 # ==========================================
@@ -149,7 +149,7 @@ comparacion = comparacion.sort_values("year")
 
 print("COMPARACIÓN COLOMBIA VS BRASIL")
 
-display(comparacion)
+
 
 
 # ==========================================
@@ -163,7 +163,7 @@ if not comparacion.empty:
         comparacion["Brasil"]
     )
 
-    display(comparacion)
+
 
     ultimo = comparacion.iloc[-1]
 
@@ -251,7 +251,7 @@ ranking = ranking.sort_values(
 
 print("COMPARACIÓN INTERNACIONAL")
 
-display(ranking)
+
 
 
 # ==========================================

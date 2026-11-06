@@ -5,7 +5,7 @@
 # 1. INSTALAR E IMPORTAR LIBRERÍAS
 # ==========================================
 
-!pip install -q pandas requests plotly
+
 
 import requests
 import pandas as pd

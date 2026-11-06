@@ -9,7 +9,7 @@ Original file is located at
 
 
 
-pip install -q streamlit pandas requests plotly
+#pip install -q streamlit pandas requests plotly
 
 Conectar pagina web con la api del Banco Mundial
 

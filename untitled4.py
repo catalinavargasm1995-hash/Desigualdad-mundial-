@@ -293,3 +293,114 @@ ranking.to_csv(
 )
 
 print("Archivos CSV generados correctamente.")
+
+# ==========================================
+# 10. GRÁFICA ADICIONAL: COMPARACIÓN INTERNACIONAL
+# ==========================================
+
+st.divider()
+
+st.header("📊 Comparación internacional de desigualdad")
+
+st.write("""
+Esta gráfica permite comparar los niveles de desigualdad
+económica de diferentes países utilizando el índice Gini.
+""")
+
+try:
+
+    with st.spinner("Cargando datos para la gráfica..."):
+
+        paises_grafica = {
+            "Colombia": "COL",
+            "Brasil": "BRA",
+            "Chile": "CHL",
+            "Argentina": "ARG",
+            "México": "MEX",
+            "Perú": "PER",
+            "España": "ESP",
+            "Estados Unidos": "USA"
+        }
+
+        resultados_grafica = []
+
+        for nombre, codigo in paises_grafica.items():
+
+            df = get_indicator(
+                "SI.POV.GINI",
+                codigo,
+                2000,
+                2025
+            )
+
+            if not df.empty:
+
+                ultimo = df.sort_values("Año").iloc[-1]
+
+                resultados_grafica.append({
+                    "País": nombre,
+                    "Índice Gini": ultimo["Valor"],
+                    "Año": int(ultimo["Año"])
+                })
+
+    df_grafica = pd.DataFrame(resultados_grafica)
+
+    if not df_grafica.empty:
+
+        df_grafica = df_grafica.sort_values(
+            "Índice Gini",
+            ascending=False
+        )
+
+        fig = px.bar(
+            df_grafica,
+            x="País",
+            y="Índice Gini",
+            color="Índice Gini",
+            text="Índice Gini",
+            hover_data=["Año"],
+            color_continuous_scale="Tealgrn",
+            title="Índice Gini por país"
+        )
+
+        fig.update_layout(
+            template="plotly_white",
+            xaxis_title="País",
+            yaxis_title="Índice Gini (0-100)",
+            coloraxis_showscale=False
+        )
+
+        fig.update_traces(
+            texttemplate="%{text:.1f}",
+            textposition="outside"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        st.caption(
+            "Fuente: Banco Mundial. Se utiliza la última "
+            "observación disponible de cada país entre "
+            "2000 y 2025. Los años pueden variar."
+        )
+
+        st.dataframe(
+            df_grafica,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    else:
+
+        st.warning(
+            "No se encontraron datos para generar la gráfica."
+        )
+
+except requests.exceptions.RequestException as error:
+
+    st.error(
+        f"No fue posible cargar los datos: {error}"
+    )
+
